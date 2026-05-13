@@ -1,3 +1,4 @@
+
 const API_URL = "https://api.teampwr.dev";
 const WS_URL = "wss://api.teampwr.dev";
 let socket, db, currentUser, activeChat;
@@ -19,7 +20,7 @@ function checkAuth() {
     }
 }
 
-window.handleAuth = async function(mode) {
+window.handleAuth = async function (mode) {
     const user = document.getElementById('auth-user').value.trim();
     const pass = document.getElementById('auth-pass').value.trim();
     if (!user || !pass) return showToast("Enter credentials");
@@ -49,16 +50,22 @@ window.handleAuth = async function(mode) {
 };
 
 function initSocket(token) {
-    socket = io(WS_URL, { 
+    socket = io(WS_URL, {
         auth: { token: `Bearer ${token}` },
-        transports: ['websocket'] 
+        transports: ['websocket']
     });
 
     socket.on('connect', () => console.log("Socket Connected"));
 
+    socket.on('force_logout', (data) => {
+        if (data.reason === "Auth error") {
+            wipeAndLogout();
+        }
+    });
+    
     socket.on('user_list', (users) => {
         onlineUsers = users;
-        loadSidebar(); 
+        loadSidebar();
         updateInputState();
     });
 
@@ -74,27 +81,27 @@ function initSocket(token) {
 function handleIncomingMessage(data) {
     const tx = db.transaction(['blocked', 'chats', 'messages'], 'readwrite');
     const blockCheck = tx.objectStore('blocked').get(data.from);
-    
+
     blockCheck.onsuccess = () => {
-        if (blockCheck.result) return; 
-        
+        if (blockCheck.result) return;
+
         const isUnread = activeChat !== data.from;
         tx.objectStore('chats').put({ username: data.from, unread: isUnread });
-        tx.objectStore('messages').add({ 
-            chatWith: data.from, 
-            text: data.text, 
-            type: data.type || 'received', 
-            time: Date.now() 
+        tx.objectStore('messages').add({
+            chatWith: data.from,
+            text: data.text,
+            type: data.type || 'received',
+            time: Date.now()
         });
-        
+
         tx.oncomplete = () => {
             if (!isUnread) {
                 displayMessages();
             } else {
                 showToast(`New message from ${data.from}`);
-                notifySound.play().catch(() => {});
+                notifySound.play().catch(() => { });
             }
-            
+
             if (document.hidden && Notification.permission === "granted") {
                 new Notification(data.from, { body: data.type === 'image' ? "Sent an image" : data.text });
             }
@@ -111,13 +118,13 @@ function initIndexedDB() {
         if (!d.objectStoreNames.contains('messages')) d.createObjectStore('messages', { keyPath: 'id', autoIncrement: true });
         if (!d.objectStoreNames.contains('blocked')) d.createObjectStore('blocked', { keyPath: 'username' });
     };
-    req.onsuccess = (e) => { 
-        db = e.target.result; 
-        loadSidebar(); 
+    req.onsuccess = (e) => {
+        db = e.target.result;
+        loadSidebar();
     };
 }
 
-window.handleImageUpload = function(input) {
+window.handleImageUpload = function (input) {
     const file = input.files[0];
     if (!file || !activeChat) return;
 
@@ -134,26 +141,26 @@ window.handleImageUpload = function(input) {
     }
 
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
         const base64Data = e.target.result;
-        
-        socket.emit('direct_message', { 
-            to: activeChat, 
-            text: base64Data, 
-            type: 'image' 
+
+        socket.emit('direct_message', {
+            to: activeChat,
+            text: base64Data,
+            type: 'image'
         });
 
         const tx = db.transaction(['messages'], 'readwrite');
-        tx.objectStore('messages').add({ 
-            chatWith: activeChat, 
-            text: base64Data, 
-            type: 'sent_image', 
-            time: Date.now() 
+        tx.objectStore('messages').add({
+            chatWith: activeChat,
+            text: base64Data,
+            type: 'sent_image',
+            time: Date.now()
         });
-        
-        tx.oncomplete = () => { 
-            displayMessages(); 
-            input.value = ""; 
+
+        tx.oncomplete = () => {
+            displayMessages();
+            input.value = "";
         };
     };
     reader.readAsDataURL(file);
@@ -172,16 +179,16 @@ function sendMessage() {
     socket.emit('direct_message', { to: activeChat, text: text, type: 'text' });
 
     const tx = db.transaction(['messages'], 'readwrite');
-    tx.objectStore('messages').add({ 
-        chatWith: activeChat, 
-        text: text, 
-        type: 'sent', 
-        time: Date.now() 
+    tx.objectStore('messages').add({
+        chatWith: activeChat,
+        text: text,
+        type: 'sent',
+        time: Date.now()
     });
-    
-    tx.oncomplete = () => { 
-        displayMessages(); 
-        input.value = ""; 
+
+    tx.oncomplete = () => {
+        displayMessages();
+        input.value = "";
     };
 }
 
@@ -190,7 +197,7 @@ function updateInputState() {
     const sendBtn = document.getElementById('sendBtn');
     const headerStatus = document.getElementById('headerStatus');
     const headerName = document.getElementById('headerName');
-    
+
     if (!activeChat) {
         if (msgInput) msgInput.disabled = true;
         if (headerStatus) headerStatus.innerText = "";
@@ -220,14 +227,14 @@ function loadSidebar() {
     const list = document.getElementById('userList');
     if (!list || !db) return;
     list.innerHTML = "";
-    
+
     const tx = db.transaction(['chats', 'blocked'], 'readonly');
     const blockStore = tx.objectStore('blocked');
     const chatStore = tx.objectStore('chats');
 
     blockStore.getAll().onsuccess = (be) => {
         const blockedUsers = be.target.result.map(b => b.username);
-        
+
         chatStore.getAll().onsuccess = (ce) => {
             ce.target.result.forEach(contact => {
                 const isBlocked = blockedUsers.includes(contact.username);
@@ -241,17 +248,17 @@ function renderChatItem(contact, container, isBlocked) {
     const div = document.createElement('div');
     const blockedClasses = isBlocked ? "opacity-40 grayscale pointer-events-none" : "hover:bg-gray-50 cursor-pointer";
     const activeClass = (activeChat === contact.username) ? 'active-chat' : '';
-    
+
     div.className = `chat-item relative flex items-center justify-between p-4 mb-1 rounded-xl font-medium transition ${activeClass} ${blockedClasses}`;
-    
+
     if (!isBlocked) {
-        div.onclick = () => { 
-            activeChat = contact.username; 
-            document.getElementById('headerName').innerText = activeChat; 
+        div.onclick = () => {
+            activeChat = contact.username;
+            document.getElementById('headerName').innerText = activeChat;
             const tx = db.transaction('chats', 'readwrite');
             tx.objectStore('chats').put({ username: contact.username, unread: false });
             tx.oncomplete = () => {
-                displayMessages(); 
+                displayMessages();
                 loadSidebar();
                 updateInputState();
             };
@@ -261,7 +268,7 @@ function renderChatItem(contact, container, isBlocked) {
     const nameWrapper = document.createElement('div');
     nameWrapper.className = "flex items-center gap-2";
     nameWrapper.innerHTML = `<span>${contact.username} ${isBlocked ? '(Blocked)' : ''}</span>`;
-    
+
     if (contact.unread && !isBlocked) {
         nameWrapper.innerHTML += `<div class="w-2 h-2 bg-black rounded-full"></div>`;
     }
@@ -274,13 +281,13 @@ function renderChatItem(contact, container, isBlocked) {
             </svg>
         </div>
         <div id="${menuId}" class="menu-dropdown shadow-lg border bg-white" style="pointer-events: auto; display:none; position:absolute; right:10px; top:40px; z-index:100;">
-            ${isBlocked 
-                ? `<div class="menu-item p-2 hover:bg-gray-100" onclick="uiUnblockUser('${contact.username}')">Unblock User</div>`
-                : `<div class="menu-item p-2 hover:bg-gray-100" onclick="uiBlockUser('${contact.username}')">Block User</div>`
-            }
+            ${isBlocked
+            ? `<div class="menu-item p-2 hover:bg-gray-100" onclick="uiUnblockUser('${contact.username}')">Unblock User</div>`
+            : `<div class="menu-item p-2 hover:bg-gray-100" onclick="uiBlockUser('${contact.username}')">Block User</div>`
+        }
             <div class="menu-item p-2 hover:bg-red-50 text-red-600 font-bold" onclick="uiDeleteChat('${contact.username}')">Delete Chat</div>
         </div>`;
-    
+
     div.prepend(nameWrapper);
     container.appendChild(div);
 }
@@ -289,14 +296,14 @@ function displayMessages() {
     const display = document.getElementById('messageDisplay');
     if (!display || !activeChat || !db) return;
     display.innerHTML = "";
-    
+
     db.transaction('messages').objectStore('messages').getAll().onsuccess = (e) => {
         e.target.result
             .filter(m => m.chatWith === activeChat)
             .forEach(m => {
                 const div = document.createElement('div');
                 div.className = `message-bubble ${m.type.includes('sent') ? 'sent' : 'received'}`;
-                
+
                 if (m.type.includes('image')) {
                     const img = document.createElement('img');
                     img.src = m.text;
@@ -312,11 +319,11 @@ function displayMessages() {
     };
 }
 
-window.openModal = function(options) {
+window.openModal = function (options) {
     const modal = document.getElementById('customModal');
     const mInput = document.getElementById('modalInput');
     const mConfirm = document.getElementById('modalConfirm');
-    
+
     document.getElementById('modalTitle').innerText = options.title;
     document.getElementById('modalDesc').innerText = options.desc || "";
     mInput.value = "";

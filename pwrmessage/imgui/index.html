@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pwRMessage</title>
+    <link rel="icon" href="https://cdn.teampwr.dev/pwrmessage/favicon.ico">
+    <link rel="stylesheet" href="https://cdn.teampwr.dev/pwrmessage/imgui/tailwind.css">
+    <script src="https://cdn.teampwr.dev/pwrmessage/socket.io.min.js"></script>
+</head>
+
+<body class="bg-brand-bg text-white">
+    <div id="toast-container"></div>
+
+    <div id="auth-view" class="flex items-center justify-center h-screen">
+        <div class="bg-brand-panel p-8 rounded-3xl border border-brand accent-glow w-full max-w-sm backdrop-blur-imgui">
+            <h1 class="text-2xl font-bold mb-6 tracking-tighter text-center">pwRMessage</h1>
+            <input id="auth-user" type="text" placeholder="Username"
+                class="w-full bg-brand-glass p-4 rounded-xl mb-3 outline-none border border-brand focus:ring-2 focus:ring-brand-accent text-white placeholder-brand-text-sub">
+            <input id="auth-pass" type="password" placeholder="Password"
+                class="w-full bg-brand-glass p-4 rounded-xl mb-6 outline-none border border-brand focus:ring-2 focus:ring-brand-accent text-white placeholder-brand-text-sub">
+            <div class="flex gap-2">
+                <button onclick="handleAuth('login')"
+                    class="flex-grow bg-brand-accent text-white p-4 rounded-xl font-bold hover:opacity-80 transition-imgui shadow-[0_0_15px_rgba(160,80,255,0.4)]">Login</button>
+                <button onclick="handleAuth('register')"
+                    class="flex-grow border-2 border-brand p-4 rounded-xl font-bold hover:bg-brand-glass transition-imgui">Sign
+                    Up</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-view" class="hidden h-screen flex relative">
+        <div id="customModal" class="modal-overlay">
+            <div class="modal-card">
+                <h2 id="modalTitle" class="text-xl font-bold mb-2"></h2>
+                <p id="modalDesc" class="text-brand-sub mb-6 text-sm"></p>
+                <input id="modalInput" type="text"
+                    class="w-full bg-brand-glass p-4 rounded-xl outline-none border border-brand focus:ring-2 focus:ring-brand-accent mb-6 text-white">
+                <div class="flex gap-3">
+                    <button onclick="closeModal()"
+                        class="flex-grow p-3 rounded-xl font-bold text-brand-sub hover:bg-brand-glass transition">Cancel</button>
+                    <button id="modalConfirm"
+                        class="flex-grow p-3 rounded-xl font-bold bg-brand-accent text-white hover:opacity-90 transition shadow-[0_0_10px_rgba(160,80,255,0.3)]">Confirm</button>
+                </div>
+            </div>
+        </div>
+
+        <aside class="sidebar flex flex-col">
+            <div class="p-6 border-b border-brand flex justify-between items-center">
+                <h1 class="text-xl font-bold tracking-tighter">pwRMessage</h1>
+                <button id="logoutBtn"
+                    class="text-xs font-bold text-brand-sub hover:text-white uppercase transition">Logout</button>
+            </div>
+            <div class="p-4 flex gap-2">
+                <button onclick="uiCreateChat()"
+                    class="flex-grow bg-brand-accent text-white font-semibold py-3 rounded-xl hover:opacity-80 transition shadow-[0_0_15px_rgba(160,80,255,0.2)]">New
+                    Chat</button>
+                <button onclick="requestNotifs()"
+                    class="bg-brand-glass border border-brand p-3 rounded-xl hover:bg-brand-panel transition">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                    </svg>
+                </button>
+            </div>
+            <div id="userList" class="flex-grow overflow-y-auto px-2"></div>
+        </aside>
+
+        <main class="flex-grow flex flex-col bg-[rgba(30,0,60,0.2)] backdrop-blur-md">
+            <header class="p-5 border-b border-brand flex items-center gap-3 bg-brand-glass">
+                <div class="flex flex-col items-start">
+                    <span id="headerName" class="text-lg font-bold leading-tight">Select a contact</span>
+                    <span id="headerStatus" class="text-xs font-medium h-4 text-brand-sub"></span>
+                </div>
+                <span id="typing-indicator" class="text-xs font-normal text-brand-accent italic ml-auto"></span>
+            </header>
+
+            <div id="messageDisplay" class="flex-grow p-6 overflow-y-auto flex flex-col gap-2"></div>
+
+            <div class="p-4 bg-brand-glass border-t border-brand flex items-center gap-3">
+                <input type="file" id="imageInput" accept="image/png, image/jpeg, image/webp, image/gif, image/svg+xml, image/bmp, image/ico, image/tiff, image/avif, image/heic" class="hidden"
+                    onchange="handleImageUpload(this)">
+
+                <button onclick="document.getElementById('imageInput').click()"
+                    class="bg-brand-glass border border-brand p-4 rounded-2xl hover:bg-brand-panel transition">
+                    <img width="24" height="24" src="https://cdn.teampwr.dev/pwrmessage/image-upload.svg"
+                        class="invert">
+                </button>
+
+                <input id="msgInput" type="text" placeholder="Write a message..."
+                    class="flex-grow bg-brand-glass border border-brand p-4 rounded-2xl outline-none focus:ring-1 focus:ring-brand-accent text-white placeholder-brand-text-sub">
+                <button id="sendBtn"
+                    class="bg-brand-accent text-white px-8 h-full rounded-2xl font-bold hover:opacity-80 transition shadow-[0_0_15px_rgba(160,80,255,0.3)]">Send</button>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdn.teampwr.dev/pwrmessage/imgui/script.js"></script>
+</body>

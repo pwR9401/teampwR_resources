@@ -49,16 +49,22 @@ window.handleAuth = async function(mode) {
 };
 
 function initSocket(token) {
-    socket = io(WS_URL, { 
+    socket = io(WS_URL, {
         auth: { token: `Bearer ${token}` },
-        transports: ['websocket'] 
+        transports: ['websocket']
     });
 
     socket.on('connect', () => console.log("Socket Connected"));
 
+    socket.on('force_logout', (data) => {
+        if (data.reason === "Auth error") {
+            wipeAndLogout();
+        }
+    });
+    
     socket.on('user_list', (users) => {
         onlineUsers = users;
-        loadSidebar(); 
+        loadSidebar();
         updateInputState();
     });
 

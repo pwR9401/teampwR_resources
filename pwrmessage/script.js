@@ -1,4 +1,3 @@
-
 const API_URL = "https://api.teampwr.dev";
 const WS_URL = "wss://api.teampwr.dev";
 let socket, db, currentUser, activeChat;

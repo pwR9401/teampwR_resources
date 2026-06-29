@@ -128,7 +128,8 @@ window.handleImageUpload = function (input) {
     const file = input.files[0];
     if (!file || !activeChat) return;
 
-    if (!onlineUsers.includes(activeChat)) {
+    const isOnline = onlineUsers.some(u => u.user === activeChat);
+    if (!isOnline) {
         showToast(`${activeChat} is offline. Cannot send images.`);
         input.value = "";
         return;
@@ -171,7 +172,8 @@ function sendMessage() {
     const text = input.value.trim();
     if (!text || !activeChat) return;
 
-    if (!onlineUsers.includes(activeChat)) {
+    const isOnline = onlineUsers.some(u => u.user === activeChat);
+    if (!isOnline) {
         showToast(`${activeChat} is offline.`);
         return;
     }
@@ -205,7 +207,7 @@ function updateInputState() {
         return;
     }
 
-    const isOnline = onlineUsers.includes(activeChat);
+    const isOnline = onlineUsers.some(u => u.user === activeChat);
 
     if (headerStatus) {
         headerStatus.innerText = isOnline ? "Online" : "Offline";

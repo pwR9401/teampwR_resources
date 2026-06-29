@@ -74,7 +74,7 @@ function initSocket(token) {
     });
 
     socket.on('user_list', (users) => {
-        onlineUsers = users;
+        onlineUsers = Array.isArray(users) ? users : [];
         loadSidebar();
         updateInputState();
     });
@@ -138,24 +138,15 @@ window.handleImageUpload = function (input) {
     const file = input.files[0];
     if (!file || !activeChat) return;
 
-    const onlineMatch = onlineUsers.find(u => u.user === activeChat);
-    const isOnline = !!onlineMatch;
-
-    if (headerStatus) {
-        if (isOnline) {
-            const rawId = onlineMatch.clientId;
-            // Lookup name or fallback gracefully if an unknown ID slips through
-            const friendlyName = rawId ? (clientNamesMap[rawId] || rawId) : 'Unknown';
-            headerStatus.innerText = `Online on ${friendlyName} Client`;
-            headerStatus.className = "text-xs font-medium text-green-500";
-        } else {
-            headerStatus.innerText = "Offline";
-            headerStatus.className = "text-xs font-medium text-gray-400";
-        }
+    const isOnline = onlineUsers.some(u => u && u.user === activeChat);
+    if (!isOnline) {
+        showToast(`${activeChat} is offline. Cannot send images.`);
+        input.value = "";
+        return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-        showToast("Image too large (Max 5MB)");
+        showToast("Image is over 5MB, cannot send.");
         input.value = "";
         return;
     }
@@ -191,7 +182,7 @@ function sendMessage() {
     const text = input.value.trim();
     if (!text || !activeChat) return;
 
-    const isOnline = onlineUsers.some(u => u.user === activeChat);
+    const isOnline = onlineUsers.some(u => u && u.user === activeChat);
     if (!isOnline) {
         showToast(`${activeChat} is offline.`);
         return;
@@ -226,11 +217,19 @@ function updateInputState() {
         return;
     }
 
-    const isOnline = onlineUsers.some(u => u.user === activeChat);
+    const onlineMatch = onlineUsers.find(u => u && u.user === activeChat);
+    const isOnline = !!onlineMatch;
 
     if (headerStatus) {
-        headerStatus.innerText = isOnline ? "Online" : "Offline";
-        headerStatus.className = "text-xs font-medium " + (isOnline ? "text-green-500" : "text-gray-400");
+        if (isOnline) {
+            const rawId = onlineMatch.clientId || 'stock';
+            const friendlyName = clientNamesMap[rawId] || rawId || "Default";
+            headerStatus.innerText = `Online on ${friendlyName} Client`;
+            headerStatus.className = "text-xs font-medium text-green-500";
+        } else {
+            headerStatus.innerText = "Offline";
+            headerStatus.className = "text-xs font-medium text-gray-400";
+        }
     }
 
     if (msgInput) {

@@ -4,13 +4,23 @@ let socket, db, currentUser, activeChat;
 let onlineUsers = [];
 const notifySound = new Audio('./message.mp3');
 
-function checkAuth() {
+let clientNamesMap = {};
+
+async function checkAuth() {
     const token = localStorage.getItem('pwr_token');
     currentUser = localStorage.getItem('pwr_user');
 
     if (token && currentUser) {
         document.getElementById('auth-view').classList.add('hidden');
         document.getElementById('app-view').classList.remove('hidden');
+
+        try {
+            const res = await fetch("https://cdn.teampwr.dev/pwrmessage/client-ids.json");
+            if (res.ok) clientNamesMap = await res.json();
+        } catch (e) {
+            console.error("Failed to load client names map", e);
+        }
+
         initIndexedDB();
         initSocket(token);
     } else {
@@ -50,7 +60,7 @@ window.handleAuth = async function (mode) {
 
 function initSocket(token) {
     socket = io(WS_URL, {
-        auth: { 
+        auth: {
             token: `Bearer ${token}`,
             clientId: 'stock'
         },
@@ -62,7 +72,7 @@ function initSocket(token) {
             wipeAndLogout();
         }
     });
-    
+
     socket.on('user_list', (users) => {
         onlineUsers = users;
         loadSidebar();
@@ -128,11 +138,20 @@ window.handleImageUpload = function (input) {
     const file = input.files[0];
     if (!file || !activeChat) return;
 
-    const isOnline = onlineUsers.some(u => u.user === activeChat);
-    if (!isOnline) {
-        showToast(`${activeChat} is offline. Cannot send images.`);
-        input.value = "";
-        return;
+    const onlineMatch = onlineUsers.find(u => u.user === activeChat);
+    const isOnline = !!onlineMatch;
+
+    if (headerStatus) {
+        if (isOnline) {
+            const rawId = onlineMatch.clientId;
+            // Lookup name or fallback gracefully if an unknown ID slips through
+            const friendlyName = rawId ? (clientNamesMap[rawId] || rawId) : 'Unknown';
+            headerStatus.innerText = `Online on ${friendlyName} Client`;
+            headerStatus.className = "text-xs font-medium text-green-500";
+        } else {
+            headerStatus.innerText = "Offline";
+            headerStatus.className = "text-xs font-medium text-gray-400";
+        }
     }
 
     if (file.size > 5 * 1024 * 1024) {

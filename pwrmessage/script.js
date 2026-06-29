@@ -50,11 +50,12 @@ window.handleAuth = async function (mode) {
 
 function initSocket(token) {
     socket = io(WS_URL, {
-        auth: { token: `Bearer ${token}` },
+        auth: { 
+            token: `Bearer ${token}`,
+            clientId: 'stock'
+        },
         transports: ['websocket']
     });
-
-    socket.on('connect', () => console.log("Socket Connected"));
 
     socket.on('force_logout', (data) => {
         if (data.reason === "Auth error") {

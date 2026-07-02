@@ -2,8 +2,8 @@ if (!document.getElementById('barrel-roll-styles')) {
   const style = document.createElement('style');
   style.id = 'barrel-roll-styles';
   style.innerHTML = `
-    @keyframes barrelRoll {
-      0% { transform: rotate(0deg); }
+      @keyframes barrelRoll {
+        0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
     .spin-me {
@@ -29,3 +29,5 @@ if (!target.classList.contains('spin-me')) {
     htmlElement.classList.remove('no-scroll');
   }, 1000);
 }
+
+/**/

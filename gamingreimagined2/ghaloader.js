@@ -78,7 +78,7 @@
                             const gameEntry = {
                                 id: `999${nextIndex}`,
                                 title: title,
-                                image: "/cdn/img/gha_loader.pngc",
+                                image: "/cdn/img/gha_loader.png",
                                 iframeUrl: gamePath
                             };
 

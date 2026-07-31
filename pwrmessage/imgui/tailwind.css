@@ -450,6 +450,14 @@
     text-transform: uppercase;
   }
 
+  .bg-green-500 {
+    background-color: var(--color-green-500);
+  }
+
+  .bg-gray-300 {
+    background-color: oklch(87.2% 0.01 258.338);
+  }
+
   .italic {
     font-style: italic;
   }

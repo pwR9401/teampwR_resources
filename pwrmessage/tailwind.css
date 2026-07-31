@@ -450,6 +450,14 @@
     background-color: var(--color-white);
   }
 
+  .bg-green-500 {
+    background-color: var(--color-green-500);
+  }
+
+  .bg-gray-300 {
+    background-color: oklch(87.2% 0.01 258.338);
+  }
+
   .p-2 {
     padding: calc(var(--spacing) * 2);
   }
@@ -800,6 +808,8 @@ body {
 .menu-item:hover {
   background: #f5f5f5;
 }
+
+
 
 .danger {
   color: #ef4444;

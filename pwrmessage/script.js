@@ -21,6 +21,7 @@ async function checkAuth() {
             console.error("Failed to load client names map", e);
         }
 
+        loadSidebar();
         initIndexedDB();
         initSocket(token);
     } else {
@@ -138,11 +139,21 @@ window.handleImageUpload = function (input) {
     const file = input.files[0];
     if (!file || !activeChat) return;
 
-    const isOnline = onlineUsers.some(u => u && u.user === activeChat);
-    if (!isOnline) {
-        showToast(`${activeChat} is offline. Cannot send images.`);
+    if (activeChat === 'Send Feedback') {
+        showToast("Cannot send images in the feedback channel.");
         input.value = "";
         return;
+    }
+
+    const targetRecipient = activeChat;
+
+    if (activeChat !== 'Send Feedback') {
+        const isOnline = onlineUsers.some(u => u && u.user === activeChat);
+        if (!isOnline) {
+            showToast(`${activeChat} is offline. Cannot send images.`);
+            input.value = "";
+            return;
+        }
     }
 
     if (file.size > 5 * 1024 * 1024) {
@@ -156,12 +167,13 @@ window.handleImageUpload = function (input) {
         const base64Data = e.target.result;
 
         socket.emit('direct_message', {
-            to: activeChat,
+            to: targetRecipient,
             text: base64Data,
             type: 'image'
         });
 
-        const tx = db.transaction(['messages'], 'readwrite');
+        const tx = db.transaction(['messages', 'chats'], 'readwrite');
+        tx.objectStore('chats').put({ username: activeChat, unread: false });
         tx.objectStore('messages').add({
             chatWith: activeChat,
             text: base64Data,
@@ -182,15 +194,20 @@ function sendMessage() {
     const text = input.value.trim();
     if (!text || !activeChat) return;
 
-    const isOnline = onlineUsers.some(u => u && u.user === activeChat);
-    if (!isOnline) {
-        showToast(`${activeChat} is offline.`);
-        return;
+    const targetRecipient = activeChat === 'Send Feedback' ? 'pwrsystem-feedback' : activeChat;
+
+    if (activeChat !== 'Send Feedback') {
+        const isOnline = onlineUsers.some(u => u && u.user === activeChat);
+        if (!isOnline) {
+            showToast(`${activeChat} is offline.`);
+            return;
+        }
     }
 
-    socket.emit('direct_message', { to: activeChat, text: text, type: 'text' });
+    socket.emit('direct_message', { to: targetRecipient, text: text, type: 'text' });
 
-    const tx = db.transaction(['messages'], 'readwrite');
+    const tx = db.transaction(['messages', 'chats'], 'readwrite');
+    tx.objectStore('chats').put({ username: activeChat, unread: false });
     tx.objectStore('messages').add({
         chatWith: activeChat,
         text: text,
@@ -216,6 +233,28 @@ function updateInputState() {
         if (headerName) headerName.innerText = "Select a contact";
         return;
     }
+
+    const imageBtn = document.querySelector('[onclick="document.getElementById(\'imageInput\').click()"]');
+
+    if (activeChat === 'Send Feedback') {
+        if (headerName) headerName.innerText = "Send Feedback";
+        if (headerStatus) {
+            headerStatus.innerText = "";
+            headerStatus.className = "text-xs font-medium h-4";
+        }
+        if (msgInput) {
+            msgInput.disabled = false;
+            msgInput.placeholder = "Write a message...";
+        }
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.style.opacity = "1";
+        }
+        if (imageBtn) imageBtn.style.display = 'none';
+        return;
+    }
+
+    if (imageBtn) imageBtn.style.display = '';
 
     const onlineMatch = onlineUsers.find(u => u && u.user === activeChat);
     const isOnline = !!onlineMatch;
@@ -245,8 +284,12 @@ function updateInputState() {
 
 function loadSidebar() {
     const list = document.getElementById('userList');
-    if (!list || !db) return;
+    if (!list) return;
     list.innerHTML = "";
+
+    renderFeedbackChatItem(list);
+
+    if (!db) return;
 
     const tx = db.transaction(['chats', 'blocked'], 'readonly');
     const blockStore = tx.objectStore('blocked');
@@ -257,11 +300,47 @@ function loadSidebar() {
 
         chatStore.getAll().onsuccess = (ce) => {
             ce.target.result.forEach(contact => {
-                const isBlocked = blockedUsers.includes(contact.username);
-                renderChatItem(contact, list, isBlocked);
+                if (contact.username !== 'Send Feedback' && contact.username !== 'pwrsystem-feedback') {
+                    const isBlocked = blockedUsers.includes(contact.username);
+                    renderChatItem(contact, list, isBlocked);
+                }
             });
         };
     };
+}
+
+function renderFeedbackChatItem(container) {
+    const div = document.createElement('div');
+    const isActive = (activeChat === 'Send Feedback');
+    const activeClass = isActive ? 'active-chat' : '';
+
+    div.className = `chat-item relative flex items-center justify-between p-4 mb-1 rounded-xl font-medium transition ${activeClass} hover:bg-gray-50 cursor-pointer`;
+
+    div.onclick = () => {
+        activeChat = 'Send Feedback';
+        document.getElementById('headerName').innerText = 'Send Feedback';
+        if (db) {
+            const tx = db.transaction('chats', 'readwrite');
+            tx.objectStore('chats').put({ username: 'Send Feedback', unread: false });
+            tx.oncomplete = () => {
+                displayMessages();
+                loadSidebar();
+                updateInputState();
+            };
+        } else {
+            displayMessages();
+            loadSidebar();
+            updateInputState();
+        }
+    };
+
+    div.innerHTML = `
+        <div class="flex items-center gap-2">
+            <span>Send Feedback</span>
+        </div>
+    `;
+
+    container.appendChild(div);
 }
 
 function renderChatItem(contact, container, isBlocked) {
@@ -285,9 +364,12 @@ function renderChatItem(contact, container, isBlocked) {
         };
     }
 
+    const isOnline = onlineUsers.some(u => u && u.user === contact.username);
+    const dotColor = isOnline ? 'bg-green-500' : 'bg-gray-300';
+
     const nameWrapper = document.createElement('div');
     nameWrapper.className = "flex items-center gap-2";
-    nameWrapper.innerHTML = `<span>${contact.username} ${isBlocked ? '(Blocked)' : ''}</span>`;
+    nameWrapper.innerHTML = `<div class="w-2 h-2 ${dotColor} rounded-full" style="flex-shrink:0"></div><span>${contact.username} ${isBlocked ? '(Blocked)' : ''}</span>`;
 
     if (contact.unread && !isBlocked) {
         nameWrapper.innerHTML += `<div class="w-2 h-2 bg-black rounded-full"></div>`;
@@ -314,12 +396,21 @@ function renderChatItem(contact, container, isBlocked) {
 
 function displayMessages() {
     const display = document.getElementById('messageDisplay');
-    if (!display || !activeChat || !db) return;
+    if (!display || !activeChat) return;
     display.innerHTML = "";
+
+    if (activeChat === 'Send Feedback') {
+        const banner = document.createElement('div');
+        banner.className = 'message-bubble received';
+        banner.textContent = "Use this chat to give feedback for pwRMessage! Spam or troll feedback can result in account suspension.";
+        display.appendChild(banner);
+    }
+
+    if (!db) return;
 
     db.transaction('messages').objectStore('messages').getAll().onsuccess = (e) => {
         e.target.result
-            .filter(m => m.chatWith === activeChat)
+            .filter(m => m.chatWith === activeChat || (activeChat === 'Send Feedback' && m.chatWith === 'pwrsystem-feedback'))
             .forEach(m => {
                 const div = document.createElement('div');
                 div.className = `message-bubble ${m.type.includes('sent') ? 'sent' : 'received'}`;
